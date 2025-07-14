@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1096596643983",
+    "project_id": "cirkle-57cc6",
+    "storage_bucket": "cirkle-57cc6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1096596643983:android:4e01a9910806f4665c50fa",
+        "android_client_info": {
+          "package_name": "com.example.cirmle_rfid_pos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAtLNbQ68ZmFbPY3SdPSeVvMS4TfZf2gI8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
