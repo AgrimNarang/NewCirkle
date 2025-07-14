@@ -1,6 +1,6 @@
-import 'package:cirmle_rfid_pos/screens/auth/signup_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../dashboard/dashboard_screen.dart';
 import '../../services/user_service.dart';
 import '../../models/user.dart';
 
@@ -16,9 +16,9 @@ class _SignInPageState extends State<SignInPage> {
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String _selectedUserType = 'stall'; // Default selection
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final UserService _userService = UserService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   @override
   void dispose() {
@@ -34,73 +34,83 @@ class _SignInPageState extends State<SignInPage> {
       });
 
       try {
-        // Use UserService to sign in and get user type
-        final user = await _userService.signInUser(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
+        // Get user input and clean it
+        final email = _emailController.text.trim();
+        final password = _passwordController.text.trim();
+        final userType = _selectedUserType;
 
-        if (mounted) {
-          String userTypeText = user.isStallUser ? 'Stall User' : 'Top-up User';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Signed in successfully as $userTypeText!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+        print('Attempting to sign in with:');
+        print('Email: "$email"');
+        print('Password: "$password"');
+        print('User Type: $userType');
 
-          await Future.delayed(Duration(milliseconds: 500));
+        // Search for specific user by email to reduce query time
+        final QuerySnapshot querySnapshot = await _firestore
+            .collection(userType)
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
 
-          if (mounted) {
-            try {
-              Navigator.pushReplacementNamed(context, '/dashboard');
-            } catch (e) {
-              print('Navigation error: $e');
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/dashboard',
-                    (route) => false,
-              );
-            }
+        bool userFound = false;
+        AppUser? authenticatedUser;
+
+        // Check if user exists and password matches
+        if (querySnapshot.docs.isNotEmpty) {
+          final doc = querySnapshot.docs.first;
+          final userData = doc.data() as Map<String, dynamic>;
+          final docPassword = (userData['password']?.toString().trim()) ?? '';
+
+          if (docPassword == password) {
+            userFound = true;
+            // Store user information in UserService for later use
+            // Ensure user type is set correctly based on collection
+            userData['userType'] = userType; // Set the userType based on which collection we found the user in
+            authenticatedUser = AppUser.fromMap(userData, doc.id);
+            UserService().setCurrentUser(authenticatedUser);
           }
         }
-      } on FirebaseAuthException catch (e) {
-        String errorMessage = '';
-        switch (e.code) {
-          case 'user-not-found':
-            errorMessage = 'No user found for that email.';
-            break;
-          case 'wrong-password':
-            errorMessage = 'Wrong password provided.';
-            break;
-          case 'invalid-email':
-            errorMessage = 'The email address is not valid.';
-            break;
-          case 'user-disabled':
-            errorMessage = 'This user account has been disabled.';
-            break;
-          case 'too-many-requests':
-            errorMessage = 'Too many requests. Please try again later.';
-            break;
-          case 'invalid-credential':
-            errorMessage = 'Invalid email or password.';
-            break;
-          default:
-            errorMessage = 'An error occurred: ${e.message}';
-        }
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-          );
+        if (userFound) {
+          if (mounted) {
+            // Navigate to dashboard immediately
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
+        } else {
+          print('User not found or credentials don\'t match');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Invalid email, password, or user type. Please try again.',
+                ),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
         }
       } catch (e) {
+        print('Firestore error: $e');
+        print('Error type: ${e.runtimeType}');
         if (mounted) {
+          String errorMessage;
+
+          if (e.toString().contains('permission-denied')) {
+            errorMessage =
+            'Access denied. Please update Firestore security rules.';
+          } else if (e.toString().contains('network') ||
+              e.toString().contains('connection')) {
+            errorMessage =
+            'Network error. Please check your internet connection.';
+          } else {
+            errorMessage = 'An unexpected error occurred. Please try again.';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('User not found in system. Please contact admin.'),
+              content: Text(errorMessage),
               backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
             ),
           );
         }
@@ -112,13 +122,6 @@ class _SignInPageState extends State<SignInPage> {
         }
       }
     }
-  }
-
-  void _navigateToSignUp() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SignUpPage()),
-    );
   }
 
   @override
@@ -139,46 +142,49 @@ class _SignInPageState extends State<SignInPage> {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: screenSize.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    // Header Section
-                    Container(
-                      padding: EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Sign in',
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints viewportConstraints) {
+              return SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: viewportConstraints.maxHeight,
+                  ),
+                  child: Column(
+                    children: [
+                      // Header Section
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 40,
+                          horizontal: 24,
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Sign in',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Welcome back! Please sign in to your account',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withOpacity(0.9),
+                            SizedBox(height: 8),
+                            Text(
+                              'Welcome back! Please sign in to your account',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
-                    // Form Section
-                    Flexible(
-                      child: Container(
+                      // Form Section
+                      Container(
                         width: double.infinity,
                         constraints: BoxConstraints(
                           maxWidth: isMobile ? double.infinity : 400,
@@ -187,9 +193,7 @@ class _SignInPageState extends State<SignInPage> {
                         padding: EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.all(
-                            Radius.circular(32),
-                          ),
+                          borderRadius: BorderRadius.all(Radius.circular(32)),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.1),
@@ -209,17 +213,18 @@ class _SignInPageState extends State<SignInPage> {
                               // Email Field
                               _buildInputField(
                                 controller: _emailController,
-                                label: 'Email',
-                                hint: 'Enter your email address',
+                                label: 'User ID',
+                                hint: 'Enter your user ID',
                                 icon: Icons.email,
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (value) {
                                   if (value == null || value.trim().isEmpty) {
-                                    return 'Please enter your email';
+                                    return 'Please enter user ID';
                                   }
-                                  if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-                                      .hasMatch(value.trim())) {
-                                    return 'Please enter a valid email';
+                                  if (!RegExp(
+                                    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+                                  ).hasMatch(value.trim())) {
+                                    return 'Please enter a valid user ID';
                                   }
                                   return null;
                                 },
@@ -235,7 +240,9 @@ class _SignInPageState extends State<SignInPage> {
                                 obscureText: _obscurePassword,
                                 suffixIcon: IconButton(
                                   icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                    _obscurePassword
+                                        ? Icons.visibility_off
+                                        : Icons.visibility,
                                     color: Color(0xFF1976D2),
                                   ),
                                   onPressed: () {
@@ -251,6 +258,10 @@ class _SignInPageState extends State<SignInPage> {
                                   return null;
                                 },
                               ),
+                              SizedBox(height: 24),
+
+                              // User Type Selection
+                              _buildUserTypeSelection(),
                               SizedBox(height: 40),
 
                               // Sign In Button
@@ -273,7 +284,10 @@ class _SignInPageState extends State<SignInPage> {
                                     height: 24,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor:
+                                      AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                       : Text(
@@ -285,49 +299,151 @@ class _SignInPageState extends State<SignInPage> {
                                   ),
                                 ),
                               ),
-                              SizedBox(height: 24),
-
-                              // Sign Up Link
-                              Center(
-                                child: Wrap(
-                                  alignment: WrapAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Don\'t have an account? ',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: _navigateToSignUp,
-                                      child: Text(
-                                        'Sign Up',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFF1976D2),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
                               SizedBox(height: 20),
                             ],
                           ),
                         ),
                       ),
-                    ),
 
-                    SizedBox(height: 40),
-                  ],
+                      SizedBox(height: 40),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildUserTypeSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'User Type',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1976D2),
+          ),
+        ),
+        SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedUserType = 'stall';
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _selectedUserType == 'stall'
+                        ? Color(0xFF1976D2).withOpacity(0.1)
+                        : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _selectedUserType == 'stall'
+                          ? Color(0xFF1976D2)
+                          : Colors.grey[300]!,
+                      width: _selectedUserType == 'stall' ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _selectedUserType == 'stall'
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: _selectedUserType == 'stall'
+                            ? Color(0xFF1976D2)
+                            : Colors.grey[600],
+                      ),
+                      SizedBox(width: 12),
+                      Icon(
+                        Icons.store,
+                        color: _selectedUserType == 'stall'
+                            ? Color(0xFF1976D2)
+                            : Colors.grey[600],
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Stall',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: _selectedUserType == 'stall'
+                              ? Color(0xFF1976D2)
+                              : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedUserType = 'topup';
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _selectedUserType == 'topup'
+                        ? Color(0xFF1976D2).withOpacity(0.1)
+                        : Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _selectedUserType == 'topup'
+                          ? Color(0xFF1976D2)
+                          : Colors.grey[300]!,
+                      width: _selectedUserType == 'topup' ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _selectedUserType == 'topup'
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        color: _selectedUserType == 'topup'
+                            ? Color(0xFF1976D2)
+                            : Colors.grey[600],
+                      ),
+                      SizedBox(width: 12),
+                      Icon(
+                        Icons.account_balance_wallet,
+                        color: _selectedUserType == 'topup'
+                            ? Color(0xFF1976D2)
+                            : Colors.grey[600],
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Top-up',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: _selectedUserType == 'topup'
+                              ? Color(0xFF1976D2)
+                              : Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

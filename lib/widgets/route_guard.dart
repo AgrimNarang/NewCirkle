@@ -1,91 +1,151 @@
+
 import 'package:flutter/material.dart';
+import '../models/user.dart';
 import '../services/user_service.dart';
 
 class RouteGuard extends StatelessWidget {
   final Widget child;
   final String route;
+  final UserService _userService = UserService();
 
-  const RouteGuard({
-    Key? key,
+  RouteGuard({
+    super.key,
     required this.child,
     required this.route,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    final userService = UserService();
-    
-    // Check if user is signed in
-    if (!userService.isSignedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
-      });
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    final currentUser = _userService.currentUser;
+
+    if (currentUser == null) {
+      return _buildAccessDenied('Please sign in to access this feature');
     }
 
-    // Check if user has access to this route
-    // Dashboard is accessible to all authenticated users
-    if (route == '/dashboard' || !userService.hasAccessToRoute(route)) {
-      if (route != '/dashboard') {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Access Denied'),
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-          ),
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.lock,
-                  size: 80,
-                  color: Colors.red[300],
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Access Denied',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'You don\'t have permission to access this feature.',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context, 
-                      '/dashboard', 
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1976D2),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Go to Dashboard'),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
+    if (!currentUser.hasAccessToRoute(route)) {
+      return _buildRestrictedAccess(currentUser);
     }
 
     return child;
+  }
+
+  Widget _buildAccessDenied(String message) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Access Denied'),
+        backgroundColor: Colors.red,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.block,
+              size: 80,
+              color: Colors.red,
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Access Denied',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              message,
+              style: TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRestrictedAccess(AppUser user) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Restricted Access'),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.warning,
+              size: 80,
+              color: Colors.orange,
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Restricted Access',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'This feature is not available for ${user.isStallUser ? 'Stall' : 'Top-up'} users.',
+              style: TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 20),
+            Container(
+              padding: EdgeInsets.all(16),
+              margin: EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Available Features:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  ...user.allowedRoutes.map((route) => Text(
+                    '• ${_getFeatureName(route)}',
+                    style: TextStyle(fontSize: 14),
+                  )).toList(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getFeatureName(String route) {
+    switch (route) {
+      case '/issue_new_card':
+        return 'Issue New Card';
+      case '/top_up':
+      case '/topup':
+        return 'Top Up';
+      case '/check_balance_tap_card':
+        return 'Check Balance';
+      case '/order':
+        return 'Orders';
+      case '/refund':
+        return 'Refund';
+      case '/summary':
+        return 'Summary';
+      default:
+        return route.replaceAll('/', '').replaceAll('_', ' ');
+    }
   }
 }

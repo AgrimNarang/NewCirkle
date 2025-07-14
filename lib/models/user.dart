@@ -23,14 +23,21 @@ class AppUser {
   });
 
   factory AppUser.fromMap(Map<String, dynamic> map, String documentId) {
+    // Determine user type from the userType field in the map
+    UserType userType = UserType.topup; // default
+    final userTypeString = map['userType']?.toString().toLowerCase();
+
+    if (userTypeString == 'stall') {
+      userType = UserType.stall;
+    } else if (userTypeString == 'topup') {
+      userType = UserType.topup;
+    }
+
     return AppUser(
       id: documentId,
       email: map['email'] ?? '',
       name: map['name'] ?? '',
-      userType: UserType.values.firstWhere(
-        (e) => e.toString() == 'UserType.${map['userType']}',
-        orElse: () => UserType.topup,
-      ),
+      userType: userType,
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isActive: map['isActive'] ?? true,
     );
@@ -48,22 +55,26 @@ class AppUser {
 
   bool get isStallUser => userType == UserType.stall;
   bool get isTopupUser => userType == UserType.topup;
+  bool get isAdmin => isStallUser; // For now, stall users have admin privileges
 
   List<String> get allowedRoutes {
-    if (isStallUser) {
+    if (userType == UserType.stall) {
       return [
-        '/issue_new_card',
-        '/topup',
-        '/check_balance_tap_card',
+        '/order',
         '/refund',
         '/summary',
       ];
     } else {
       return [
         '/issue_new_card',
+        '/top_up',
         '/topup',
         '/check_balance_tap_card',
       ];
     }
+  }
+
+  bool hasAccessToRoute(String route) {
+    return allowedRoutes.contains(route);
   }
 }

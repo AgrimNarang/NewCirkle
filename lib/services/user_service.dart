@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
 
 class UserService {
@@ -7,194 +7,225 @@ class UserService {
   factory UserService() => _instance;
   UserService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   AppUser? _currentUser;
   AppUser? get currentUser => _currentUser;
 
-  // Collection references
-  CollectionReference get _stallUsersCollection => 
-      _firestore.collection('stall_users');
-  CollectionReference get _topupUsersCollection => 
-      _firestore.collection('topup_users');
-
-  // Generate unique ID for new users
-  String generateUserId(UserType userType) {
-    final prefix = userType == UserType.stall ? 'STL' : 'TOP';
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return '$prefix$timestamp';
-  }
-
-  // Create new user in backend
-  Future<String> createUser({
-    required String email,
-    required String name,
-    required UserType userType,
-    required String password,
-  }) async {
+  // Sign in with email and password
+  Future<AppUser?> signIn(String email, String password) async {
     try {
-      // Create Firebase Auth user
-      final userCredential = await _auth.createUserWithEmailAndPassword(
+      // Authenticate with Firebase
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (userCredential.user == null) {
-        throw Exception('Failed to create Firebase user');
-      }
+      if (userCredential.user != null) {
+        // Try to find user in stall_users collection first
+        final stallDoc = await _firestore
+            .collection('stall_users')
+            .doc(userCredential.user!.uid)
+            .get();
 
-      final userId = generateUserId(userType);
-      final newUser = AppUser(
-        id: userId,
-        email: email,
-        name: name,
-        userType: userType,
-        createdAt: DateTime.now(),
-      );
+        if (stallDoc.exists) {
+          _currentUser = AppUser.fromMap(stallDoc.data()!, stallDoc.id);
+          return _currentUser;
+        }
 
-      // Store in appropriate collection based on user type
-      final collection = userType == UserType.stall 
-          ? _stallUsersCollection 
-          : _topupUsersCollection;
+        // If not found in stall_users, try topup_users collection
+        final topupDoc = await _firestore
+            .collection('topup_users')
+            .doc(userCredential.user!.uid)
+            .get();
 
-      await collection.doc(userId).set(newUser.toMap());
+        if (topupDoc.exists) {
+          _currentUser = AppUser.fromMap(topupDoc.data()!, topupDoc.id);
+          return _currentUser;
+        }
 
-      // Update Firebase Auth user display name
-      await userCredential.user!.updateDisplayName(name);
-
-      return userId;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Sign in user and fetch user data
-  Future<AppUser> signInUser(String email, String password) async {
-    try {
-      // Sign in with Firebase Auth
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      // Fetch user data from both collections
-      final user = await getUserByEmail(email);
-      if (user == null) {
-        throw Exception('User not found in database');
-      }
-
-      _currentUser = user;
-      return user;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Get user by email from both collections
-  Future<AppUser?> getUserByEmail(String email) async {
-    try {
-      // Check stall users first
-      final stallQuery = await _stallUsersCollection
-          .where('email', isEqualTo: email)
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
-
-      if (stallQuery.docs.isNotEmpty) {
-        final doc = stallQuery.docs.first;
-        return AppUser.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }
-
-      // Check topup users
-      final topupQuery = await _topupUsersCollection
-          .where('email', isEqualTo: email)
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
-
-      if (topupQuery.docs.isNotEmpty) {
-        final doc = topupQuery.docs.first;
-        return AppUser.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        // If user document doesn't exist in either collection
+        throw Exception('User data not found. Please contact administrator.');
       }
 
       return null;
-    } catch (e) {
-      print('Error fetching user: $e');
-      return null;
-    }
-  }
-
-  // Get user by ID
-  Future<AppUser?> getUserById(String userId) async {
-    try {
-      final userType = userId.startsWith('STL') ? UserType.stall : UserType.topup;
-      final collection = userType == UserType.stall 
-          ? _stallUsersCollection 
-          : _topupUsersCollection;
-
-      final doc = await collection.doc(userId).get();
-      if (doc.exists) {
-        return AppUser.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          throw Exception('No user found with this email address.');
+        case 'wrong-password':
+          throw Exception('Invalid password.');
+        case 'invalid-email':
+          throw Exception('Invalid email address format.');
+        case 'user-disabled':
+          throw Exception('This account has been disabled.');
+        case 'too-many-requests':
+          throw Exception('Too many login attempts. Please try again later.');
+        default:
+          throw Exception('Sign in failed: ${e.message}');
       }
-      return null;
     } catch (e) {
-      print('Error fetching user by ID: $e');
-      return null;
+      throw Exception('An unexpected error occurred: $e');
     }
   }
 
-  // Get all users of a specific type
-  Future<List<AppUser>> getUsersByType(UserType userType) async {
-    try {
-      final collection = userType == UserType.stall 
-          ? _stallUsersCollection 
-          : _topupUsersCollection;
-
-      final query = await collection
-          .where('isActive', isEqualTo: true)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      return query.docs.map((doc) => 
-          AppUser.fromMap(doc.data() as Map<String, dynamic>, doc.id)
-      ).toList();
-    } catch (e) {
-      print('Error fetching users by type: $e');
-      return [];
-    }
-  }
-
-  // Update user status
-  Future<void> updateUserStatus(String userId, bool isActive) async {
-    try {
-      final userType = userId.startsWith('STL') ? UserType.stall : UserType.topup;
-      final collection = userType == UserType.stall 
-          ? _stallUsersCollection 
-          : _topupUsersCollection;
-
-      await collection.doc(userId).update({'isActive': isActive});
-    } catch (e) {
-      print('Error updating user status: $e');
-      rethrow;
-    }
-  }
-
-  // Check if user has access to a route
-  bool hasAccessToRoute(String route) {
-    if (_currentUser == null) return false;
-    return _currentUser!.allowedRoutes.contains(route);
-  }
-
-  // Sign out user
+  // Sign out
   Future<void> signOut() async {
-    await _auth.signOut();
-    _currentUser = null;
+    try {
+      await _auth.signOut();
+      _currentUser = null;
+    } catch (e) {
+      throw Exception('Sign out failed: $e');
+    }
   }
+
+  // Check if user is signed in
+  bool get isSignedIn => _auth.currentUser != null && _currentUser != null;
 
   // Get current Firebase user
   User? get firebaseUser => _auth.currentUser;
 
-  // Check if user is signed in
-  bool get isSignedIn => _auth.currentUser != null && _currentUser != null;
+  // Initialize user session (call this on app start)
+  Future<void> initializeUser() async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser != null) {
+      // Try to load user data from Firestore
+      try {
+        // Check stall_users first
+        final stallDoc = await _firestore
+            .collection('stall_users')
+            .doc(firebaseUser.uid)
+            .get();
+
+        if (stallDoc.exists) {
+          _currentUser = AppUser.fromMap(stallDoc.data()!, stallDoc.id);
+          return;
+        }
+
+        // Check topup_users
+        final topupDoc = await _firestore
+            .collection('topup_users')
+            .doc(firebaseUser.uid)
+            .get();
+
+        if (topupDoc.exists) {
+          _currentUser = AppUser.fromMap(topupDoc.data()!, topupDoc.id);
+          return;
+        }
+
+        // If no user document found, sign out
+        await signOut();
+      } catch (e) {
+        // If error loading user data, sign out
+        await signOut();
+      }
+    }
+  }
+
+  // Create a new user account
+  Future<AppUser?> createUser({
+    required String email,
+    required String password,
+    required String name,
+    required UserType userType,
+  }) async {
+    try {
+      // Create Firebase user
+      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (userCredential.user != null) {
+        // Generate user ID based on type
+        final String userId = _generateUserId(userType);
+
+        // Create user document
+        final userData = {
+          'email': email,
+          'name': name,
+          'userType': userType.toString().split('.').last,
+          'createdAt': Timestamp.now(),
+          'isActive': true,
+        };
+
+        // Determine collection based on user type
+        final String collection = userType == UserType.stall ? 'stall_users' : 'topup_users';
+
+        // Save to appropriate collection
+        await _firestore.collection(collection).doc(userCredential.user!.uid).set(userData);
+
+        // Create and return AppUser object
+        final newUser = AppUser(
+          id: userCredential.user!.uid,
+          email: email,
+          name: name,
+          userType: userType,
+          createdAt: DateTime.now(),
+          isActive: true,
+        );
+
+        _currentUser = newUser;
+        return newUser;
+      }
+
+      return null;
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'weak-password':
+          throw Exception('The password is too weak.');
+        case 'email-already-in-use':
+          throw Exception('An account already exists with this email.');
+        case 'invalid-email':
+          throw Exception('Invalid email address format.');
+        default:
+          throw Exception('Account creation failed: ${e.message}');
+      }
+    } catch (e) {
+      throw Exception('An unexpected error occurred: $e');
+    }
+  }
+
+  // Generate user ID based on type
+  String _generateUserId(UserType userType) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final prefix = userType == UserType.stall ? 'STL' : 'TOP';
+    return '$prefix$timestamp';
+  }
+
+  // Get all users by type (for admin purposes)
+  Future<List<AppUser>> getUsersByType(UserType userType) async {
+    try {
+      final String collection = userType == UserType.stall ? 'stall_users' : 'topup_users';
+      final QuerySnapshot snapshot = await _firestore.collection(collection).get();
+
+      return snapshot.docs.map((doc) =>
+          AppUser.fromMap(doc.data() as Map<String, dynamic>, doc.id)
+      ).toList();
+    } catch (e) {
+      throw Exception('Failed to load users: $e');
+    }
+  }
+
+  // Update user status
+  Future<void> updateUserStatus(String userId, bool isActive, UserType userType) async {
+    try {
+      final String collection = userType == UserType.stall ? 'stall_users' : 'topup_users';
+      await _firestore.collection(collection).doc(userId).update({
+        'isActive': isActive,
+      });
+    } catch (e) {
+      throw Exception('Failed to update user status: $e');
+    }
+  }
+
+  // Set current user (for admin operations)
+  void setCurrentUser(AppUser? user) {
+    _currentUser = user;
+  }
+
+  void clearCurrentUser() {
+    _currentUser = null;
+  }
 }

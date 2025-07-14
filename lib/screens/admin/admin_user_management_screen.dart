@@ -11,7 +11,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
     with SingleTickerProviderStateMixin {
   final UserService _userService = UserService();
   late TabController _tabController;
-  
+
   List<AppUser> stallUsers = [];
   List<AppUser> topupUsers = [];
   bool isLoading = false;
@@ -58,7 +58,11 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
 
   Future<void> _toggleUserStatus(AppUser user) async {
     try {
-      await _userService.updateUserStatus(user.id, !user.isActive);
+      await _userService.updateUserStatus(
+        user.id,
+        !user.isActive,
+        user.userType,
+      );
       _loadUsers(); // Refresh the list
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -110,12 +114,12 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildUserList(stallUsers, UserType.stall),
-                _buildUserList(topupUsers, UserType.topup),
-              ],
-            ),
+        controller: _tabController,
+        children: [
+          _buildUserList(stallUsers, UserType.stall),
+          _buildUserList(topupUsers, UserType.topup),
+        ],
+      ),
     );
   }
 
@@ -182,8 +186,8 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen>
                 Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: user.isStallUser 
-                        ? Colors.orange.withOpacity(0.1) 
+                    color: user.isStallUser
+                        ? Colors.orange.withOpacity(0.1)
                         : Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
