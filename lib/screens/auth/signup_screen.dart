@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signin_screen.dart';
+import '../../services/user_service.dart';
+import '../../models/user.dart';
 
 class SignUpPage extends StatefulWidget {
   @override
@@ -20,9 +22,11 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   bool _hasValidationErrors = false;
+  UserType _selectedUserType = UserType.topup;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final UserService _userService = UserService();
 
   @override
   void dispose() {
@@ -46,28 +50,20 @@ class _SignUpPageState extends State<SignUpPage> {
       });
 
       try {
-        UserCredential userCredential =
-        await _auth.createUserWithEmailAndPassword(
+        final userId = await _userService.createUser(
           email: _emailController.text.trim(),
+          name: _userNameController.text.trim(),
+          userType: _selectedUserType,
           password: _passwordController.text.trim(),
         );
 
-        await userCredential.user!
-            .updateDisplayName(_userNameController.text.trim());
-
-        await _firestore.collection('users').doc(userCredential.user!.uid).set({
-          'userName': _userNameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'createdAt': FieldValue.serverTimestamp(),
-          'uid': userCredential.user!.uid,
-        });
-
         if (mounted) {
+          String userTypeText = _selectedUserType == UserType.stall ? 'Stall User' : 'Top-up User';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Account created successfully!'),
+              content: Text('$userTypeText account created successfully! ID: $userId'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+              duration: Duration(seconds: 3),
             ),
           );
 
@@ -75,7 +71,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
           if (mounted) {
             try {
-              Navigator.pushReplacementNamed(context, '/signin');
+              Navigator.pushReplacementNamed(context, '/');
             } catch (e) {
               print('Named route failed: $e');
               Navigator.pop(context);
@@ -323,6 +319,79 @@ class _SignUpPageState extends State<SignUpPage> {
                                     }
                                     return null;
                                   },
+                                ),
+                                SizedBox(height: 14),
+
+                                // User Type Selection
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'User Type',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF1976D2),
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.grey[300]!),
+                                        color: Colors.white,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          RadioListTile<UserType>(
+                                            title: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text('Top-up User'),
+                                                Text(
+                                                  'Can issue new cards, top up, and check balance',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            value: UserType.topup,
+                                            groupValue: _selectedUserType,
+                                            onChanged: (UserType? value) {
+                                              setState(() {
+                                                _selectedUserType = value!;
+                                              });
+                                            },
+                                          ),
+                                          Divider(height: 1, color: Colors.grey[300]),
+                                          RadioListTile<UserType>(
+                                            title: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text('Stall User'),
+                                                Text(
+                                                  'Full access except orders',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            value: UserType.stall,
+                                            groupValue: _selectedUserType,
+                                            onChanged: (UserType? value) {
+                                              setState(() {
+                                                _selectedUserType = value!;
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
 
                                 // Add extra space when there are no errors to push terms down

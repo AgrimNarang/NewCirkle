@@ -1,6 +1,8 @@
 import 'package:cirmle_rfid_pos/screens/auth/signup_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../services/user_service.dart';
+import '../../models/user.dart';
 
 class SignInPage extends StatefulWidget {
   @override
@@ -16,6 +18,7 @@ class _SignInPageState extends State<SignInPage> {
   bool _isLoading = false;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final UserService _userService = UserService();
 
   @override
   void dispose() {
@@ -31,15 +34,17 @@ class _SignInPageState extends State<SignInPage> {
       });
 
       try {
-        await _auth.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
+        // Use UserService to sign in and get user type
+        final user = await _userService.signInUser(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
         );
 
         if (mounted) {
+          String userTypeText = user.isStallUser ? 'Stall User' : 'Top-up User';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Signed in successfully!'),
+              content: Text('Signed in successfully as $userTypeText!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
@@ -94,7 +99,7 @@ class _SignInPageState extends State<SignInPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('An unexpected error occurred. Please try again.'),
+              content: Text('User not found in system. Please contact admin.'),
               backgroundColor: Colors.red,
             ),
           );
