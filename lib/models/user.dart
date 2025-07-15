@@ -59,17 +59,22 @@ class AppUser {
 
   List<String> get allowedRoutes {
     if (userType == UserType.stall) {
+      // Stall users: everything except topup and issue new card
       return [
         '/order',
+        '/check_balance_tap_card',
         '/refund',
         '/summary',
       ];
     } else {
+      // Topup users: everything except orders
       return [
         '/issue_new_card',
         '/top_up',
         '/topup',
         '/check_balance_tap_card',
+        '/refund',
+        '/summary',
       ];
     }
   }
