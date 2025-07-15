@@ -318,6 +318,9 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Widget _buildUserTypeSelection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 400;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -330,120 +333,95 @@ class _SignInPageState extends State<SignInPage> {
           ),
         ),
         SizedBox(height: 12),
-        Row(
+        isSmallScreen
+            ? Column(
+          children: [
+            _buildUserTypeOption('stall', Icons.store, 'Stall'),
+            SizedBox(height: 12),
+            _buildUserTypeOption('topup', Icons.account_balance_wallet, 'Top-up'),
+          ],
+        )
+            : Row(
           children: [
             Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedUserType = 'stall';
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: _selectedUserType == 'stall'
-                        ? Color(0xFF1976D2).withOpacity(0.1)
-                        : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _selectedUserType == 'stall'
-                          ? Color(0xFF1976D2)
-                          : Colors.grey[300]!,
-                      width: _selectedUserType == 'stall' ? 2 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _selectedUserType == 'stall'
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        color: _selectedUserType == 'stall'
-                            ? Color(0xFF1976D2)
-                            : Colors.grey[600],
-                      ),
-                      SizedBox(width: 12),
-                      Icon(
-                        Icons.store,
-                        color: _selectedUserType == 'stall'
-                            ? Color(0xFF1976D2)
-                            : Colors.grey[600],
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Stall',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: _selectedUserType == 'stall'
-                              ? Color(0xFF1976D2)
-                              : Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: _buildUserTypeOption('stall', Icons.store, 'Stall'),
             ),
             SizedBox(width: 16),
             Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedUserType = 'topup';
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: _selectedUserType == 'topup'
-                        ? Color(0xFF1976D2).withOpacity(0.1)
-                        : Colors.grey[50],
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _selectedUserType == 'topup'
-                          ? Color(0xFF1976D2)
-                          : Colors.grey[300]!,
-                      width: _selectedUserType == 'topup' ? 2 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _selectedUserType == 'topup'
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        color: _selectedUserType == 'topup'
-                            ? Color(0xFF1976D2)
-                            : Colors.grey[600],
-                      ),
-                      SizedBox(width: 12),
-                      Icon(
-                        Icons.account_balance_wallet,
-                        color: _selectedUserType == 'topup'
-                            ? Color(0xFF1976D2)
-                            : Colors.grey[600],
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Top-up',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: _selectedUserType == 'topup'
-                              ? Color(0xFF1976D2)
-                              : Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: _buildUserTypeOption('topup', Icons.account_balance_wallet, 'Top-up'),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildUserTypeOption(String userType, IconData icon, String label) {
+    final isSelected = _selectedUserType == userType;
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.width < 400;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedUserType = userType;
+        });
+      },
+      child: Container(
+        width: isSmallScreen ? double.infinity : null,
+        padding: EdgeInsets.symmetric(
+          vertical: isSmallScreen ? 14 : 16,
+          horizontal: isSmallScreen ? 12 : 16,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Color(0xFF1976D2).withOpacity(0.1)
+              : Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? Color(0xFF1976D2)
+                : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: isSmallScreen ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: isSelected
+                  ? Color(0xFF1976D2)
+                  : Colors.grey[600],
+              size: isSmallScreen ? 20 : 24,
+            ),
+            SizedBox(width: isSmallScreen ? 8 : 12),
+            Icon(
+              icon,
+              color: isSelected
+                  ? Color(0xFF1976D2)
+                  : Colors.grey[600],
+              size: isSmallScreen ? 18 : 20,
+            ),
+            SizedBox(width: isSmallScreen ? 6 : 8),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 14 : 16,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected
+                      ? Color(0xFF1976D2)
+                      : Colors.grey[700],
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
