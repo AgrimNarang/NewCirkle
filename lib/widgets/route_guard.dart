@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
@@ -133,7 +132,6 @@ class RouteGuard extends StatelessWidget {
     switch (route) {
       case '/issue_new_card':
         return 'Issue New Card';
-      case '/top_up':
       case '/topup':
         return 'Top Up';
       case '/check_balance_tap_card':

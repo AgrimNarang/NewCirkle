@@ -5,20 +5,20 @@ import 'screens/auth/signin_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/cards/issue_new_card_screen.dart';
 import 'screens/cards/tap_new_card_screen.dart';
-import 'screens/payments/payment_method_screen.dart';
-import 'screens/payments/card_payment_screen.dart';
-import 'screens/payments/upi_payment_screen.dart';
-import 'screens/payments/transaction_failed_screen.dart';
+import 'screens/payments/methods/payment_method_screen.dart';
+import 'screens/payments/processing/card_payment_screen.dart';
+import 'screens/payments/processing/upi_payment_screen.dart';
+import 'screens/payments/results/transaction_failed_screen.dart';
 import 'screens/cards/top_up_screen.dart';
 import 'screens/cards/tap_card_screen.dart';
 import 'screens/payments/topup_payment_method_screen.dart';
 import 'screens/payments/topup_card_payment_screen.dart';
 import 'screens/cards/check_balance_tap_card.dart';
 import 'screens/cards/check_balance_amount_left.dart';
-import 'screens/orders/order_screen.dart';
-import 'screens/orders/order_summary_screen.dart';
-import 'screens/payments/payment_success_screen.dart';
-import 'screens/orders/bill_kot_screen.dart';
+import 'screens/orders/menu/order_screen.dart';
+import 'screens/orders/checkout/order_summary_screen.dart';
+import 'screens/payments/results/payment_success_screen.dart';
+import 'screens/orders/bills/bill_kot_screen.dart';
 import 'screens/refund/refund_screen.dart';
 import 'screens/summary/summary_screen.dart';
 
@@ -34,6 +34,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Cirkle POS',
       theme: ThemeData(primarySwatch: Colors.blue),
       initialRoute: '/',
@@ -51,12 +52,12 @@ class MyApp extends StatelessWidget {
             paymentMethod: args?['paymentMethod'] ?? 'Unknown',
           );
         },
+        '/check_balance_amount_left': (context) =>
+            CheckBalanceAmountLeftScreen(),
         '/top_up': (context) => TopUpScreen(),
         '/topup': (context) => TopUpScreen(),
         '/topup_tap_card': (context) => TapCardScreen(),
         '/check_balance_tap_card': (context) => CheckBalanceTapCardScreen(),
-        '/check_balance_amount_left': (context) =>
-            CheckBalanceAmountLeftScreen(),
         '/order': (context) => OrderScreen(),
         '/order_summary': (context) => OrderSummaryScreen(),
         '/payment_bill': (context) => TransactionFailedScreen(),

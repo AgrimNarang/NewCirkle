@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'payment_success_screen.dart';
+import 'results/payment_success_screen.dart';
 
 class TopupCardPaymentScreen extends StatelessWidget {
   final _holderController = TextEditingController();

@@ -1,0 +1,26 @@
+2025-07-15 15:58:06.646: [INFO] VisibilityChanged: 0
+2025-07-15 15:58:06.797: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.799: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.803: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.805: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.808: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.811: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.814: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.817: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.819: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.822: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.825: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:06.866: [INFO] BookmarkNodeAdded, ABU: 0
+2025-07-15 15:58:06.867: [INFO] BookmarkNodeAdded, ABU: 0
+2025-07-15 15:58:06.867: [INFO] BookmarkNodeAdded, ABU: 0
+2025-07-15 15:58:06.867: [INFO] BookmarkNodeAdded, ABU: 0
+2025-07-15 15:58:06.868: [INFO] BookmarkNodeAdded, ABU: 0
+2025-07-15 15:58:06.868: [INFO] BookmarkModelLoaded, ids_reassigned: 0
+2025-07-15 15:58:06.868: [INFO] OnDoneLoading sync enabled: 0
+2025-07-15 15:58:06.875: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 0
+2025-07-15 15:58:07.190: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2025-07-15 15:58:07.194: [INFO] Primary account changed.
+2025-07-15 15:58:07.194: [INFO] OnPrimaryAccountChanged PrimaryAccountChangeEvent::Type::kSet
+2025-07-15 15:58:07.198: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2025-07-15 15:58:07.530: [INFO] RecordSyncInitDuration has_sync_been_enabled: 0 state: 3
+2025-07-15 15:58:12.320: [INFO] Sync initialization duration: 3202ms
