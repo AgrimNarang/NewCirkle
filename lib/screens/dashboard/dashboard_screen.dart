@@ -191,21 +191,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'icon': Icons.account_balance,
         'route': '/check_balance_tap_card',
         'color': Colors.orange,
-        'allowedFor': ['topup'], // Only topup users can access
+        'allowedFor': ['topup', 'stall'], // Both user types can access
       },
       {
         'title': 'Refund',
         'icon': Icons.money_off,
         'route': '/refund',
         'color': Colors.red,
-        'allowedFor': ['stall'], // Only stall users can access
+        'allowedFor': ['topup', 'stall'], // Both user types can access
       },
       {
         'title': 'Summary',
         'icon': Icons.analytics,
         'route': '/summary',
         'color': Colors.purple,
-        'allowedFor': ['stall'], // Only stall users can access
+        'allowedFor': ['topup', 'stall'], // Both user types can access
       },
     ];
 
