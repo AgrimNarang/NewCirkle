@@ -19,11 +19,15 @@ import 'screens/cards/check_balance_amount_left.dart';
 import 'screens/orders/order_screen.dart';
 import 'screens/orders/order_summary_screen.dart';
 import 'screens/payments/payment_success_screen.dart';
+import 'api_login.dart';
 import 'screens/orders/bill_kot_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Example: Call login and print token (replace with actual credentials)
+  final token = await ApiService.loginAndGetToken();
+  print('Received token: $token');
   runApp(const MyApp());
 }
 
